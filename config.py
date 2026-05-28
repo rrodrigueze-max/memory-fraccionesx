@@ -2,7 +2,7 @@
 import pygame
 
 # ==================== DIMENSIONES ====================
-PANTALLA_ANCHO = 1000
+PANTALLA_ANCHO = 900
 PANTALLA_ALTO = 700
 
 # ==================== COLORES ====================
@@ -27,17 +27,17 @@ MELON = (255, 165, 79)
 CELESTE = (135, 206, 250)
 LILA = (200, 150, 255)
 CHOCOLATE = (101, 67, 33)
-FRESA = (255, 80, 80)      # ← ESTA FALTABA
+FRESA = (255, 80, 80)
 VAINILLA = (255, 248, 220)
 
-# ==================== CONFIGURACIÓN DE NIVELES ====================
+# Configuración por nivel
 NIVELES_CONFIG = {
     1: {"nombre": "PRINCIPIANTE", "filas": 2, "columnas": 2, "pares": 2, "color": VERDE, "tiempo": 50},
-    2: {"nombre": "EXPLORADOR", "filas": 3, "columnas": 3, "pares": 4, "color": AMARILLO, "tiempo": 70},
+    2: {"nombre": "EXPLORADOR", "filas": 2, "columnas": 4, "pares": 4, "color": AMARILLO, "tiempo": 70},
     3: {"nombre": "MAESTRO", "filas": 4, "columnas": 4, "pares": 8, "color": ROJO, "tiempo": 90},
 }
 
 # ==================== CONFIGURACIÓN DEL JUEGO ====================
 FPS = 60
-TIEMPO_ESPERA_ERROR = 800  # milisegundos
+TIEMPO_ESPERA_ERROR = 800
 PUNTOS_POR_PAREJA = 10
