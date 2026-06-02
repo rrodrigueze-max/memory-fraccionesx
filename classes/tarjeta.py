@@ -87,7 +87,7 @@ class Tarjeta:
         if self.tipo == "texto":
             self._dibujar_texto(pantalla, x, y, w, h)
         else:
-            self.dibujos_torta.dibujar(pantalla, self.rect, self.numerador, self.denominador, self.sabor, self.nombre)
+            self.dibujos_torta.dibujar(pantalla, self.rect, self.numerador, self.denominador, self.color, self.sabor, self.nombre)
     
     def _dibujar_texto(self, pantalla, x, y, w, h):
         """Dibuja la representación textual de la fracción"""

@@ -425,7 +425,7 @@ class JuegoMemory:
         """Dibuja todas las cartas"""
         for carta in self.cartas:
             carta.dibujar(self.pantalla)
-    
+
     def _dibujar_efectos(self):
         """Dibuja los efectos visuales"""
         for p in self.particulas:
@@ -434,7 +434,7 @@ class JuegoMemory:
             e.dibujar(self.pantalla)
         for c in self.confeti:
             c.dibujar(self.pantalla)
-    
+
     def _dibujar_pantallas_fin(self):
         """Dibuja las pantallas de fin de nivel/juego"""
         if self.esperando_siguiente_nivel:

@@ -4,13 +4,14 @@ import pygame
 import random
 import math
 from config import *
+from PIL import Image
 
 class PantallaHistoria:
     def __init__(self, pantalla):
         self.pantalla = pantalla
         self.fuente_titulo = pygame.font.Font(None, 60)
         self.fuente_normal = pygame.font.Font(None, 32)
-        self.fuente_dialogo = pygame.font.Font(None, 28)
+        self.fuente_dialogo = pygame.font.Font(None, 24)
         self.fuente_pequena = pygame.font.Font(None, 24)
         
         # Animación
@@ -20,8 +21,27 @@ class PantallaHistoria:
         self.globos_flotando = []
         self._crear_globos()
         self._cargar_chef_frames()
+
+        # Imagen de entrada personalizada
+        self.custom_entrance_image = None
+        custom_path = "/home/ramiro/Descargas/foto1.png"
+        try:
+            if os.path.isfile(custom_path):
+                img = pygame.image.load(custom_path).convert_alpha()
+                self.custom_entrance_image = pygame.transform.smoothscale(img, (PANTALLA_ANCHO, PANTALLA_ALTO))
+                print("✅ Imagen de fondo personalizada cargada")
+        except Exception:
+            self.custom_entrance_image = None
         
-        # Diálogos del personaje
+        # Cargar GIF de pizza animado
+        self.pizza_frames = []
+        self.pizza_frame_index = 0
+        self.pizza_ultimo_cambio = 0
+        self.pizza_frame_delay = 100
+        self.pizza_gif_rect = None
+        self._cargar_pizza_gif()
+        
+        # Diálogos
         self.dialogos = [
             "¡Hola! ¡Soy Nico, tu chef amigo!",
             "¡AYUDA! El monstruo se llevó mis recetas...",
@@ -36,7 +56,7 @@ class PantallaHistoria:
         self.tiempo_ultimo_dialogo = 0
         self.mostrando_dialogo = True
         
-        # Fondo
+        # Fondo alternativo
         self.fondo = None
         self._crear_fondo()
     
@@ -44,21 +64,15 @@ class PantallaHistoria:
         """Crea fondo colorido y alegre"""
         self.fondo = pygame.Surface((PANTALLA_ANCHO, PANTALLA_ALTO))
         
-        # Cielo arcoíris
         colores = [
-            (255, 100, 100),  # Rojo
-            (255, 180, 80),   # Naranja
-            (255, 240, 80),   # Amarillo
-            (100, 200, 100),  # Verde
-            (80, 180, 255),   # Azul
-            (200, 100, 255),  # Morado
+            (255, 100, 100), (255, 180, 80), (255, 240, 80),
+            (100, 200, 100), (80, 180, 255), (200, 100, 255),
         ]
         
         ancho_banda = PANTALLA_ANCHO // len(colores)
         for i, color in enumerate(colores):
             pygame.draw.rect(self.fondo, color, (i * ancho_banda, 0, ancho_banda, PANTALLA_ALTO))
         
-        # Nubes
         for i in range(5):
             x = random.randint(0, PANTALLA_ANCHO)
             y = random.randint(20, 200)
@@ -66,7 +80,6 @@ class PantallaHistoria:
             pygame.draw.ellipse(self.fondo, (255, 255, 255), (x + 40, y - 20, 80, 50))
     
     def _crear_globos(self):
-        """Crea globos flotantes"""
         for _ in range(8):
             self.globos_flotando.append({
                 'x': random.randint(50, PANTALLA_ANCHO - 50),
@@ -77,7 +90,6 @@ class PantallaHistoria:
             })
     
     def _cargar_chef_frames(self):
-        """Carga los frames animados del chef desde assets"""
         carpeta = os.path.join("assets", "chef_frames")
         if not os.path.isdir(carpeta):
             return
@@ -91,84 +103,61 @@ class PantallaHistoria:
             except pygame.error:
                 pass
     
+    def _cargar_pizza_gif(self):
+        gif_path = "/home/ramiro/Descargas/112.gif"
+        
+        if not os.path.isfile(gif_path):
+            print(f"❌ No se encontró: {gif_path}")
+            self.pizza_frames = []
+            return
+        
+        try:
+            print(f"✅ Cargando GIF: {gif_path}")
+            pil_gif = Image.open(gif_path)
+            frames = []
+            print(f"📀 GIF tiene {pil_gif.n_frames} frames")
+            
+            for frame_num in range(pil_gif.n_frames):
+                pil_gif.seek(frame_num)
+                if pil_gif.mode != 'RGB':
+                    frame_rgb = pil_gif.convert('RGB')
+                else:
+                    frame_rgb = pil_gif.copy()
+                
+                frame_surface = pygame.image.fromstring(
+                    frame_rgb.tobytes(), 
+                    frame_rgb.size, 
+                    'RGB'
+                ).convert_alpha()
+                
+                frame_surface = pygame.transform.smoothscale(frame_surface, (60, 70))
+                frames.append(frame_surface)
+            
+            self.pizza_frames = frames
+            self.pizza_frame_index = 0
+            self.pizza_ultimo_cambio = pygame.time.get_ticks()
+            self.pizza_gif_rect = frames[0].get_rect(topleft=(444, 200))
+            print(f"✅ Pizza GIF cargada: {len(frames)} frames")
+            
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            self.pizza_frames = []
+    
+    def _actualizar_animacion_pizza(self):
+        if not self.pizza_frames or len(self.pizza_frames) <= 1:
+            return
+        ahora = pygame.time.get_ticks()
+        if ahora - self.pizza_ultimo_cambio >= self.pizza_frame_delay:
+            self.pizza_frame_index = (self.pizza_frame_index + 1) % len(self.pizza_frames)
+            self.pizza_ultimo_cambio = ahora
+    
     def _dibujar_personaje_principal(self, x, y):
-        """Dibuja a un chef niño con estilo alegre y colorido"""
-
-        # Animación de salto y brillo
-        self.animacion_frame += 0.12
-        salto = int(math.sin(self.animacion_frame) * 6)
-        brillo = 200 + int(30 * math.sin(self.animacion_frame * 1.5))
-        color_cara = (255, 230, 200)
-
-        # ========== CUERPO ==========
-        pygame.draw.ellipse(self.pantalla, (120, 190, 255), (x - 36, y - 10 + salto, 72, 90))
-        pygame.draw.rect(self.pantalla, (255, 220, 120), (x - 32, y + 30 + salto, 64, 45), border_radius=16)
-        pygame.draw.rect(self.pantalla, (255, 170, 220), (x - 24, y + 38 + salto, 48, 30), border_radius=14)
-
-        # ========== CARA ==========
-        pygame.draw.circle(self.pantalla, color_cara, (x, y - 35 + salto), 30)
-        pygame.draw.circle(self.pantalla, BLANCO, (x - 14, y - 40 + salto), 12)
-        pygame.draw.circle(self.pantalla, BLANCO, (x + 14, y - 40 + salto), 12)
-        pygame.draw.circle(self.pantalla, NEGRO, (x - 14, y - 40 + salto), 6)
-        pygame.draw.circle(self.pantalla, NEGRO, (x + 14, y - 40 + salto), 6)
-        pygame.draw.circle(self.pantalla, (255, 180, 180), (x - 18, y - 28 + salto), 6)
-        pygame.draw.circle(self.pantalla, (255, 180, 180), (x + 18, y - 28 + salto), 6)
-        pygame.draw.arc(self.pantalla, NEGRO, (x - 16, y - 28 + salto, 32, 24), math.pi, 2 * math.pi, 4)
-
-        # Pelo alegre asomando bajo el gorro
-        pygame.draw.arc(self.pantalla, (200, 120, 70), (x - 28, y - 55 + salto, 20, 24), math.pi, 2 * math.pi, 12)
-        pygame.draw.arc(self.pantalla, (200, 120, 70), (x + 8, y - 55 + salto, 20, 24), math.pi, 2 * math.pi, 12)
-        pygame.draw.polygon(self.pantalla, (200, 120, 70), [(x - 15, y - 55 + salto), (x + 15, y - 55 + salto), (x, y - 70 + salto)])
-
-        # ========== GORRO DE CHEF ==========
-        pygame.draw.rect(self.pantalla, BLANCO, (x - 32, y - 70 + salto, 64, 25), border_radius=12)
-        pygame.draw.ellipse(self.pantalla, BLANCO, (x - 28, y - 95 + salto, 56, 42))
-        pygame.draw.ellipse(self.pantalla, (230, 230, 230), (x - 22, y - 90 + salto, 44, 28))
-
-        # ========== BRAZOS ==========
-        brazo_izq_y = y + 6 + salto + int(math.sin(self.animacion_frame * 2) * 4)
-        brazo_izq_x = x - 35
-        pygame.draw.line(self.pantalla, color_cara, (x - 20, y + 10 + salto), (brazo_izq_x, brazo_izq_y), 12)
-        pygame.draw.circle(self.pantalla, color_cara, (brazo_izq_x, brazo_izq_y), 8)
-
-        brazo_der_y = y + 8 + salto + int(math.cos(self.animacion_frame * 2) * 4)
-        brazo_der_x = x + 35
-        pygame.draw.line(self.pantalla, color_cara, (x + 20, y + 10 + salto), (brazo_der_x, brazo_der_y), 12)
-        pygame.draw.circle(self.pantalla, color_cara, (brazo_der_x, brazo_der_y), 8)
-
-        # Espátula divertida en mano
-        pygame.draw.line(self.pantalla, (180, 180, 200), (brazo_der_x, brazo_der_y), (brazo_der_x + 18, brazo_der_y - 10), 6)
-        pygame.draw.rect(self.pantalla, (240, 240, 240), (brazo_der_x + 15, brazo_der_y - 18, 20, 10), border_radius=4)
-
-        # ========== PIERNAS Y ZAPATOS ==========
-        pygame.draw.line(self.pantalla, (255, 220, 120), (x - 14, y + 70 + salto), (x - 18, y + 95 + salto), 10)
-        pygame.draw.line(self.pantalla, (255, 220, 120), (x + 14, y + 70 + salto), (x + 18, y + 95 + salto), 10)
-        pygame.draw.ellipse(self.pantalla, (120, 150, 200), (x - 28, y + 92 + salto, 22, 12))
-        pygame.draw.ellipse(self.pantalla, (120, 150, 200), (x + 6, y + 92 + salto, 22, 12))
-
-        # ========== DELANTAL Y DETALLES ==========
-        pygame.draw.rect(self.pantalla, (255, 255, 255), (x - 18, y - 2 + salto, 36, 50), border_radius=12)
-        pygame.draw.ellipse(self.pantalla, (255, 200, 200), (x - 16, y + 6 + salto, 32, 14))
-        pygame.draw.circle(self.pantalla, (255, 180, 180), (x, y + 18 + salto), 4)
-
-        # Detalles brillantes
-        for i in range(3):
-            px = x + int(math.cos(self.animacion_frame + i * 2) * 26)
-            py = y - 20 + salto + int(math.sin(self.animacion_frame + i * 1.5) * 12)
-            pygame.draw.circle(self.pantalla, (255, 255, 180), (px, py), 4)
-            pygame.draw.circle(self.pantalla, (255, 110, 180), (px + 2, py - 2), 2)
-
+        """Dibuja al chef (NO SE USA ACTUALMENTE)"""
+        pass  # Vacío porque no queremos mostrar el muñeco
+    
     def _dibujar_chef_animado(self, x, y):
-        """Dibuja al chef niño usando frames animados"""
-        if self.chef_frames:
-            self.chef_frame_index += 0.15
-            if self.chef_frame_index >= len(self.chef_frames):
-                self.chef_frame_index = 0.0
-            frame = self.chef_frames[int(self.chef_frame_index)]
-            rect = frame.get_rect(midbottom=(x, y))
-            self.pantalla.blit(frame, rect)
-        else:
-            self._dibujar_personaje_principal(x, y)
+        """No dibuja nada - muñeco eliminado"""
+        pass  # No dibujar el chef
     
     def _wrap_text(self, texto, fuente, max_width):
         palabras = texto.split(" ")
@@ -187,7 +176,6 @@ class PantallaHistoria:
         return lineas
 
     def _dibujar_burbuja_dialogo(self, texto, x, y):
-        """Dibuja burbuja de diálogo"""
         lineas = self._wrap_text(texto, self.fuente_dialogo, 340)
         ancho = max(self.fuente_dialogo.size(linea)[0] for linea in lineas) + 40
         alto = len(lineas) * self.fuente_dialogo.get_height() + 30
@@ -202,51 +190,60 @@ class PantallaHistoria:
             ty = y - alto - 10 + i * self.fuente_dialogo.get_height()
             self.pantalla.blit(texto_render, (tx, ty))
     
+    def _dibujar_cuadro_instrucciones(self):
+        ancho = 300
+        x = PANTALLA_ANCHO - ancho - 20
+        y = 90
+
+        instrucciones = [
+            "Busca las cartas que tienen la misma fracción.",
+            "Haz clic en dos cartas para voltearlas.",
+            "Encuentra todas antes de que se acabe el tiempo.",
+        ]
+
+        max_texto_ancho = ancho - 30
+        lineas = []
+        for instruccion in instrucciones:
+            lineas.extend(self._wrap_text(instruccion, self.fuente_pequena, max_texto_ancho))
+
+        alto = 24 + self.fuente_normal.get_height() + len(lineas) * (self.fuente_pequena.get_height() + 4) + 16
+        fondo = pygame.Surface((ancho, alto), pygame.SRCALPHA)
+        fondo.fill((255, 255, 255, 220))
+        self.pantalla.blit(fondo, (x, y))
+
+        sombra_rect = pygame.Rect(x + 4, y + 4, ancho, alto)
+        sombra = pygame.Surface((ancho, alto), pygame.SRCALPHA)
+        sombra.fill((0, 0, 0, 35))
+        self.pantalla.blit(sombra, (x + 4, y + 4))
+
+        rect = pygame.Rect(x, y, ancho, alto)
+        pygame.draw.rect(self.pantalla, (200, 180, 140), rect, 2, border_radius=20)
+
+        titulo = self.fuente_normal.render("INSTRUCCIONES", True, (50, 45, 35))
+        self.pantalla.blit(titulo, (x + 18, y + 10))
+
+        linea_y = y + 38
+        for linea in lineas:
+            texto = self.fuente_pequena.render(linea, True, (60, 55, 45))
+            self.pantalla.blit(texto, (x + 18, linea_y))
+            linea_y += self.fuente_pequena.get_height() + 4
+    
     def _dibujar_monstruo(self, x, y):
-        """Dibuja monstruo divertido (no da miedo)"""
-        # Cuerpo
         pygame.draw.ellipse(self.pantalla, (150, 255, 150), (x - 30, y - 25, 60, 50))
-        # Ojos grandes
         pygame.draw.circle(self.pantalla, BLANCO, (x - 12, y - 15), 10)
         pygame.draw.circle(self.pantalla, BLANCO, (x + 12, y - 15), 10)
         pygame.draw.circle(self.pantalla, NEGRO, (x - 12, y - 15), 5)
         pygame.draw.circle(self.pantalla, NEGRO, (x + 12, y - 15), 5)
-        # Boca asustada
         pygame.draw.ellipse(self.pantalla, NEGRO, (x - 12, y + 2, 24, 12))
-        # Cuernitos
         pygame.draw.line(self.pantalla, (150, 255, 150), (x - 15, y - 45), (x - 25, y - 60), 5)
         pygame.draw.line(self.pantalla, (150, 255, 150), (x + 15, y - 45), (x + 25, y - 60), 5)
-        
-        # Cartel "¡Qué miedo!"
         texto = self.fuente_pequena.render(" ¡Huy!", True, (0, 0, 0))
         self.pantalla.blit(texto, (x - 35, y - 75))
     
     def _dibujar_chef_gif(self, x, y):
-        """Dibuja un efecto animado tipo GIF alrededor del chef niño"""
-        fase = (pygame.time.get_ticks() / 200) % 4
-        brillo = 180 + int(40 * math.sin(pygame.time.get_ticks() / 250))
-        color_base = (brillo, 230, 255)
-        for i in range(5):
-            ang = self.animacion_frame + i * 1.25
-            radio = 75 + 6 * math.sin(ang)
-            alpha = 120 + int(80 * math.cos(ang * 0.7))
-            x_offset = x + int(math.cos(ang) * radio * 0.2)
-            y_offset = y - 30 + int(math.sin(ang) * radio * 0.1)
-            circulo = pygame.Surface((120, 120), pygame.SRCALPHA)
-            pygame.draw.circle(circulo, (*color_base, max(20, min(140, alpha))), (60, 60), int(28 + 4 * math.sin(ang * 1.5)))
-            self.pantalla.blit(circulo, (x_offset - 60, y_offset - 60))
-        # Estrellas alrededor del chef
-        for i in range(6):
-            ang = self.animacion_frame + i * 1.05
-            r = 95 + 8 * math.cos(self.animacion_frame * 1.2 + i)
-            sx = x + int(math.cos(ang) * r)
-            sy = y - 40 + int(math.sin(ang) * (r * 0.3))
-            radio = 3 + int(2 * abs(math.sin(self.animacion_frame + i)))
-            pygame.draw.circle(self.pantalla, (255, 255, 180), (sx, sy), radio)
-            pygame.draw.circle(self.pantalla, (255, 180, 220), (sx + 2, sy - 2), max(1, radio - 1))
+        pass
     
     def _dibujar_estrellas(self):
-        """Dibuja estrellas brillantes"""
         tiempo = pygame.time.get_ticks() / 500
         for i in range(15):
             x = (i * 100 + tiempo * 50) % PANTALLA_ANCHO
@@ -255,10 +252,19 @@ class PantallaHistoria:
             pygame.draw.circle(self.pantalla, (255, 255, 150), (int(x), int(y)), 2)
     
     def dibujar(self):
-        """Dibuja toda la pantalla"""
-        self.pantalla.blit(self.fondo, (0, 0))
+        """Dibuja toda la pantalla - SIN EL MUÑECO DEL CHEF"""
+        # Fondo
+        if self.custom_entrance_image:
+            self.pantalla.blit(self.custom_entrance_image, (0, 0))
+        else:
+            self.pantalla.blit(self.fondo, (0, 0))
         
-        # Dibujar globos
+        # GIF de pizza animado
+        if self.pizza_frames:
+            self._actualizar_animacion_pizza()
+            self.pantalla.blit(self.pizza_frames[self.pizza_frame_index], self.pizza_gif_rect)
+        
+        # Globos
         for globo in self.globos_flotando:
             globo['y'] -= globo['vel_y']
             if globo['y'] < -50:
@@ -272,35 +278,35 @@ class PantallaHistoria:
         
         # Título
         titulo = self.fuente_titulo.render("¡AVENTURA EN LA PASTELERÍA!", True, DORADO)
-        titulo_rect = titulo.get_rect(center=(PANTALLA_ANCHO // 2, 40))
+        titulo_rect = titulo.get_rect(center=(PANTALLA_ANCHO // 2, 20))
         sombra = self.fuente_titulo.render("¡AVENTURA EN LA PASTELERÍA!", True, (100, 80, 20))
-        sombra_rect = sombra.get_rect(center=(PANTALLA_ANCHO // 2 + 3, 43))
+        sombra_rect = sombra.get_rect(center=(PANTALLA_ANCHO // 2 + 3, 20))
         self.pantalla.blit(sombra, sombra_rect)
         self.pantalla.blit(titulo, titulo_rect)
+
+        # Instrucciones
+        self._dibujar_cuadro_instrucciones()
+
+        # MUÑECO ELIMINADO - Ya no se dibuja al chef
         
-        # Personaje principal con animación de frames
-        self._dibujar_chef_animado(260, PANTALLA_ALTO - 90)
-        
-        # Monstruo (escondido)
+        # Monstruo
         self._dibujar_monstruo(PANTALLA_ANCHO - 120, PANTALLA_ALTO - 180)
         
         # Burbuja de diálogo
         if self.mostrando_dialogo and self.dialogo_actual < len(self.dialogos):
-            self._dibujar_burbuja_dialogo(self.dialogos[self.dialogo_actual], 500, PANTALLA_ALTO - 230)
+            self._dibujar_burbuja_dialogo(self.dialogos[self.dialogo_actual], 690, PANTALLA_ALTO - 70)
         
-        # Instrucción
+        # Instrucción espacio
         if pygame.time.get_ticks() // 500 % 2 == 0:
             instruccion = self.fuente_normal.render(" PRESIONA ESPACIO ", True, (255, 100, 50))
             instruccion_rect = instruccion.get_rect(center=(PANTALLA_ANCHO // 2, PANTALLA_ALTO - 60))
             
-            # Fondo
             fondo_rect = pygame.Rect(instruccion_rect.x - 15, instruccion_rect.y - 8, instruccion_rect.w + 30, instruccion_rect.h + 16)
             pygame.draw.rect(self.pantalla, (255, 255, 200), fondo_rect, border_radius=20)
             pygame.draw.rect(self.pantalla, MARRON, fondo_rect, 3, border_radius=20)
             self.pantalla.blit(instruccion, instruccion_rect)
     
     def esperar_inicio(self):
-        """Espera ESPACIO con animación de diálogos"""
         esperando = True
         reloj = pygame.time.Clock()
         self.tiempo_ultimo_dialogo = pygame.time.get_ticks()
@@ -312,7 +318,6 @@ class PantallaHistoria:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_SPACE:
                         if self.dialogo_actual < len(self.dialogos) - 1:
-                            # Siguiente diálogo
                             self.dialogo_actual += 1
                             self.tiempo_ultimo_dialogo = pygame.time.get_ticks()
                         else:
@@ -320,7 +325,6 @@ class PantallaHistoria:
                     elif event.key == pygame.K_ESCAPE:
                         return False
             
-            # Cambiar diálogo automáticamente cada 3 segundos
             if pygame.time.get_ticks() - self.tiempo_ultimo_dialogo > 3000:
                 if self.dialogo_actual < len(self.dialogos) - 1:
                     self.dialogo_actual += 1
